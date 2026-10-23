@@ -26,7 +26,7 @@
 
 本版面向 **Apple Silicon Mac，macOS 14 或更新版本**。下载版自带 Node 运行时，无需先安装 Node.js。Intel Mac、Windows、Linux 暂无本版安装包。
 
-1. 在 [Releases](https://github.com/holooooo/FX-Fighter-Kurumi/releases/latest) 找到目标版本，下载 `JiuliuPet-v0.1.0-macos-arm64.zip` 和同一版本的 `SHA256SUMS`。发布完成前，下载入口可能尚无可用版本。
+1. 在 [Releases](https://github.com/holooooo/FX-Fighter-Kurumi/releases/latest) 找到目标版本，下载 `JiuliuPet-v0.1.1-macos-arm64.zip` 和同一版本的 `SHA256SUMS`。发布完成前，下载入口可能尚无可用版本。
 2. 将两者放在同一文件夹，校验后解压，把 `韭留美.app` 拖进「应用程序」。
 3. 确认来源可信后打开应用。当前为本地 ad-hoc 签名，未公证；首次打开可能被 macOS 拦截，按[首次打开说明](docs/installation.md#首次打开与系统提示)操作，不要关闭系统安全检查。
 
@@ -44,7 +44,7 @@ shasum -a 256 -c SHA256SUMS
 
 服务仅监听 `127.0.0.1:8766`，账户、交易日记与行情存档默认保存在 `~/.kurumi/live-state.json`。这是本地虚拟交易工具，不上传交易账本到云端，也不会替你下真实订单。
 
-鼠键统计只累计事件数量与屏幕点位移距离，不保存按键内容或鼠标轨迹；纯 Node 模式不会自动采集鼠键。DSH token 速率来自 provider 的实际 usage，未收到 usage 时不按文字长度估算。截图用于展示界面，不代表投资收益。
+鼠键统计只累计事件数量与屏幕点位移距离，不保存按键内容或鼠标轨迹；纯 Node 模式不会自动采集鼠键。DSH token 速率来自 provider 的实际 usage，未收到 usage 时不按文字长度估算。截图来自隔离的临时内存账户与当时真实本机采样，不读取已有用户存档；截图盈亏是该虚拟账户的即时变化，不代表真实投资收益。
 
 成交日记最多保留最近 500 条，总存档上限 2 MiB；行情另有保留数量与容量限制。旧档缺失的成本或成交记录不会补造，详情见[交易日记](docs/trade-diary.md)与[图表说明](docs/chart-trading.md)。
 

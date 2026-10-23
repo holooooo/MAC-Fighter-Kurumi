@@ -6,7 +6,7 @@
 
 ## 下载、校验、安装
 
-1. 打开[GitHub Releases](https://github.com/holooooo/FX-Fighter-Kurumi/releases/latest)，下载该版本的JiuliuPet-v0.1.0-macos-arm64.zip与SHA256SUMS。不要下载Source code ZIP当成应用安装包。
+1. 打开[GitHub Releases](https://github.com/holooooo/FX-Fighter-Kurumi/releases/latest)，下载该版本的JiuliuPet-v0.1.1-macos-arm64.zip与SHA256SUMS。不要下载Source code ZIP当成应用安装包。
 2. 把ZIP与SHA256SUMS放在同一文件夹。在终端进入该目录，例如`cd ~/Downloads`，执行`shasum -a 256 -c SHA256SUMS`。应看到ZIP名称及`OK`。失败则停止安装，重新下载；校验只证明与同一发布页的文件一致，不等于Apple公证或可信发行者身份。
 3. 双击ZIP解压，将韭留美.app拖进Finder的「应用程序」。压缩包附带README、安装说明及许可文件，不必把整个源码目录放入应用程序。
 4. 从「应用程序」打开韭留美。桌宠与交易面板共用本地服务。菜单栏可「打开面板」「显示／隐藏桌宠」「退出韭留美」。关闭面板不等于退出桌宠。

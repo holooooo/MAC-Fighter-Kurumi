@@ -402,11 +402,12 @@ test('Host, Origin, fetch metadata, static allowlist and body bounds', async t =
   assert.equal(html.status, 200);
   assert.match(html.headers['content-security-policy'], /object-src 'self'/);
   assert.match(html.headers['content-security-policy'], /frame-ancestors 'none'/);
-  const svg = await request(port, '/assets/jiuliu-chibi.svg');
-  assert.equal(svg.status, 200);
-  assert.match(svg.headers['content-security-policy'], /frame-ancestors 'self'/);
-  assert.match(svg.headers['content-security-policy'], /object-src 'self'/);
-  assert.equal((await request(port, '/assets/character-kurumi.png')).status, 200);
+  const actor = await request(port, '/assets/kurumi-generated-idle.png');
+  assert.equal(actor.status, 200);
+  assert.match(actor.headers['content-security-policy'], /frame-ancestors 'none'/);
+  assert.match(actor.headers['content-security-policy'], /object-src 'self'/);
+  assert.match(actor.headers['content-type'], /image\/png/);
+  assert.equal((await request(port, '/assets/meme-generated-profit.png')).status, 200);
   assert.equal((await request(port, '/api/state', { method: 'OPTIONS' })).status, 404);
   assert.equal((await post('/api/action', '{')).status, 400);
   assert.equal((await post('/api/action', 'x'.repeat(33000))).status, 413);
