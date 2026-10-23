@@ -1,0 +1,16 @@
+{
+  "name": "@jiuliu/dsh-token-bridge",
+  "version": "1.0.0",
+  "description": "Forward actual DSH provider output token usage to the local Jiuliu pet service",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "files": ["index.js", "cordis.patch.yml", "README.md"],
+  "engines": { "node": ">=20" },
+  "license": "MIT",
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}

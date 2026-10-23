@@ -1,0 +1,32 @@
+# Local generation/auth metadata and user/session data
+.artarch/
+.playwright-cli/
+output/
+dist/
+.DS_Store
+.env
+.env.*
+*.log
+__pycache__/
+*.pyc
+node_modules/
+native/.build/
+native/.swiftpm/
+
+# Historical reference archive: not part of public pet distribution
+/index.html
+/app.js
+/data.js
+/styles.css
+/archive-bridge.css
+/assets/*
+!/assets/kurumi-generated-idle.png
+!/assets/kurumi-generated.json
+!/assets/kurumi-apng/
+!/assets/kurumi-gifs/
+!/assets/memes.json
+!/assets/meme-generated-*.png
+/vendor/lightweight-charts*
+/docs/pet-product.md
+/docs/chart-trading-validation.md
+/docs/alpha-animation-validation.md

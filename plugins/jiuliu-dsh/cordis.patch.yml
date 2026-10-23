@@ -1,0 +1,6 @@
+# Host-only, dependency-free provider usage observer.
+- insert:
+    - id: jiuliu-dsh-token-bridge
+      name: '@jiuliu/dsh-token-bridge'
+      config:
+        port: 8766

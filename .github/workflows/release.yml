@@ -1,0 +1,158 @@
+name: Release Apple Silicon macOS app
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag (vMAJOR.MINOR.PATCH or -prerelease); does not create a tag'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    # Current standard runner is Apple Silicon; do not substitute macos-15-intel.
+    # https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+    runs-on: macos-15
+    timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - name: Validate tag and native runner
+        id: release
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]] || { echo 'Invalid release tag' >&2; exit 1; }
+          [[ "$(uname -m)" == arm64 ]] || { echo 'A native Apple Silicon runner is required' >&2; exit 1; }
+          printf 'tag=%s\n' "$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the existing tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: refs/tags/${{ steps.release.outputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify checkout matches the tag
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" ]]
+
+      - name: Install official standalone Node.js 24 arm64
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          architecture: arm64
+          check-latest: true
+          package-manager-cache: false
+
+      - name: Record and verify the bundled runtime
+        run: |
+          set -euo pipefail
+          NODE_PATH="$(command -v node)"
+          NODE_ROOT="$(dirname "$(dirname "$NODE_PATH")")"
+          [[ "$(node -p 'process.arch')" == arm64 ]]
+          [[ -s "$NODE_ROOT/LICENSE" ]] || { echo 'Official Node redistribution LICENSE is missing' >&2; exit 1; }
+          printf 'KURUMI_NODE_PATH=%s\nKURUMI_NODE_LICENSE_PATH=%s\n' "$NODE_PATH" "$NODE_ROOT/LICENSE" >> "$GITHUB_ENV"
+          node --version
+          swift --version
+          xcodebuild -version
+
+      - name: Run Node regression suite
+        run: node --test tests/*.test.cjs tests/*.test.mjs
+
+      - name: Run headless pure Swift regression suite
+        run: bash scripts/test-native.sh
+
+      - name: Build host and WidgetKit extension
+        run: |
+          set -euo pipefail
+          bash scripts/build-macos.sh
+          bash scripts/build-widget.sh
+
+      - name: Stage, sign, and validate release archive
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: bash scripts/package-release.sh "$RELEASE_TAG"
+
+      - name: Stage version-specific release notes
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ -f "docs/releases-${RELEASE_TAG}.md" ]]; then
+            cp "docs/releases-${RELEASE_TAG}.md" dist/RELEASE_NOTES.md
+          else
+            printf '%s\n' "韭留美 $RELEASE_TAG" 'Apple Silicon only. Ad-hoc signed, not notarized. See README for installation and known limitations.' > dist/RELEASE_NOTES.md
+          fi
+
+      - name: Upload exact release outputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: macos-arm64-release
+          path: |
+            dist/JiuliuPet-${{ steps.release.outputs.tag }}-macos-arm64.zip
+            dist/SHA256SUMS
+            dist/RELEASE_NOTES.md
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      # No repository code is checked out or executed in this write-token job.
+      - name: Download built artifacts from this run
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: macos-arm64-release
+          path: dist
+
+      - name: Validate exact artifacts and checksums
+        env:
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, os, pathlib, re
+          tag=os.environ['RELEASE_TAG']
+          assert re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?',tag), 'Invalid tag'
+          root=pathlib.Path('dist')
+          name=f'JiuliuPet-{tag}-macos-arm64.zip'
+          assert {p.name for p in root.iterdir()} == {name,'SHA256SUMS','RELEASE_NOTES.md'}, 'Unexpected artifact files'
+          assert all(p.is_file() and not p.is_symlink() for p in root.iterdir()), 'Unsafe artifact path'
+          expected=f'{hashlib.sha256((root/name).read_bytes()).hexdigest()}  {name}\n'
+          assert (root/'SHA256SUMS').read_text() == expected, 'Checksum mismatch'
+          PY
+
+      - name: Publish a release for the existing tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          args=(--verify-tag --title "韭留美 $RELEASE_TAG" --notes-file dist/RELEASE_NOTES.md)
+          if [[ "$RELEASE_TAG" == *-* ]]; then args+=(--prerelease); fi
+          # Existing releases are not modified or clobbered. Fix failures before retrying.
+          gh release create "$RELEASE_TAG" "dist/JiuliuPet-${RELEASE_TAG}-macos-arm64.zip" dist/SHA256SUMS "${args[@]}"

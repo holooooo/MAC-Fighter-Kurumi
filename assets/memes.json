@@ -1,0 +1,5 @@
+[
+  {"id":"laugh","path":"assets/meme-generated-profit.png","caption":"开心一下，先别加仓","type":"profit","width":336,"height":452},
+  {"id":"grit","path":"assets/meme-generated-buy.png","caption":"认真盯盘，管住自己的手","type":"buy","width":336,"height":452},
+  {"id":"cannot-watch","path":"assets/meme-generated-loss.png","caption":"先缓缓，我不敢看了","type":"loss","width":336,"height":452}
+]

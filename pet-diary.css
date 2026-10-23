@@ -1,0 +1,103 @@
+@charset "UTF-8";
+
+/* Service-backed diary only; companion speech, art and controls are unchanged. */
+.activity { min-width: 0; }
+#diary-notice {
+  margin: 10px 0;
+  color: #756b72;
+  font-size: 11px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+#activity-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+#activity-log > li {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line, #eee6eb);
+  color: #423741;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+#activity-log .diary-entry details {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+#activity-log .diary-entry summary {
+  display: list-item;
+  min-height: 40px;
+  padding: 6px 3px;
+  cursor: pointer;
+  color: #604a58;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#activity-log .diary-entry summary::marker { color: var(--pink, #ca527f); }
+#activity-log .diary-entry summary:hover { background: #fffafb; }
+#activity-log .diary-pnl {
+  display: inline;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: normal;
+}
+#activity-log .diary-pnl-positive { color: #b53d53; }
+#activity-log .diary-pnl-negative { color: #237653; }
+#activity-log .diary-pnl-neutral { color: #756b72; }
+#activity-log .diary-entry dl {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr);
+  gap: 6px 12px;
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid var(--line, #eee6eb);
+  border-radius: 8px;
+  background: #fffafb;
+}
+#activity-log .diary-entry dt,
+#activity-log .diary-entry dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#activity-log .diary-entry dt { color: #756b72; }
+#activity-log .diary-entry dd {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+#activity-log .diary-footnote,
+#activity-log .diary-empty {
+  color: #756b72;
+  font-size: 11px;
+  line-height: 1.8;
+}
+#activity-log .diary-footnote { margin: 8px 0 2px; }
+#activity-log .diary-pagination { border-bottom: 0; }
+#activity-log .diary-pagination button {
+  width: 100%;
+  min-height: var(--control-height, 40px);
+  padding: 9px 12px;
+  border: 1px solid var(--line, #eee6eb);
+  border-radius: 8px;
+  background: var(--pale, #fff0f5);
+  color: #92516d;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* 390px dashboard: no fixed diary widths or unbreakable amounts/identifiers. */
+@media (max-width: 480px) {
+  #activity-log .diary-entry dl { gap: 6px 10px; padding: 10px; }
+}
