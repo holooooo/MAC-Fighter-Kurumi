@@ -7,6 +7,25 @@ const os = require('node:os');
 const path = require('node:path');
 const { createService, createCpuSampler } = require('../server.cjs');
 
+test('fresh live account defaults to aggressive virtual trading and configurable cooldown', async t => {
+  const { port, post } = await fixture(t, { now: () => 1700000000000 });
+  const response=(await request(port, '/api/state')).json;
+  assert.equal(response.server.protocolVersion,2);
+  const initial=response.game;
+  assert.equal(initial.leverage, 10);
+  const leverage=await post('/api/action',{action:'leverage',leverage:2});
+  assert.equal(leverage.status,200);assert.equal(leverage.json.game.leverage,2);
+  assert.equal((await post('/api/action',{action:'leverage',leverage:21})).status,400);
+  assert.ok(initial.personality.riskTolerance >= 0.9);
+  assert.equal(initial.automation.autoBorrow, true);
+  assert.ok(initial.automation.budgetFraction >= 0.9);
+  assert.equal(initial.automation.tradeCooldownMs, 60000);
+  const update=await post('/api/action', {action:'automation',automation:{tradeCooldownMs:86400000}});
+  assert.equal(update.status,200);assert.equal(update.json.game.automation.tradeCooldownMs,86400000);
+  assert.equal((await post('/api/action',{action:'automation',automation:{tradeCooldownMs:12345}})).status,400);
+  assert.equal((await request(port,'/api/state')).json.game.automation.tradeCooldownMs,86400000);
+});
+
 test('selected real candle frames and long/short fill journal share atomic service state', async t => {
   let time = 120000;
   const { port, post } = await fixture(t, { now: () => time });
@@ -106,7 +125,7 @@ test('service bankruptcy preserves old losses while debt relief opens a separate
   assert.equal(financed.json.game.credit.unlimited, true);
   await post('/api/action', { action: 'add', instrument: { id: 'LOSS', name: '实际采样测试' } });
   await post('/api/samples', { samples: [{ id: 'LOSS', value: 100, time }] });
-  await post('/api/action', { action: 'buy', symbol: 'LOSS', quantity: 1000 });
+  await post('/api/action', { action: 'buy', symbol: 'LOSS', quantity: 1000, leverage: 1 });
   time += 1000;
   await post('/api/samples', { samples: [{ id: 'LOSS', value: 10, time }] });
   const before = (await request(port, '/api/state')).json;
@@ -252,6 +271,22 @@ test('retired legacy positions settle at saved price without changing equity', a
   assert.equal(restored.instruments.some(i => i.id === 'CODEX'), false);
   assert.equal(restored.instruments.find(i => i.id === 'DSH').category, 'token-rate-v1');
   assert.ok(restored.events.some(e => e.type === 'instrument-migrated'));
+});
+
+test('retired legacy short positions preserve marked equity including interest', async t => {
+  const E = require('../pet-engine.js');
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'kurumi-short-migration-'));
+  t.after(async () => { assert.ok(dir.startsWith(path.join(os.tmpdir(), 'kurumi-short-migration-'))); await fs.rm(dir, {recursive:true,force:true}); });
+  const statePath=path.join(dir,'state.json');
+  const game=E.createGame({mode:'live',startTime:0,historyLimit:120,eventLimit:100,instruments:['CPU','MEM','LOAD','CODEX'].map(id=>({id,price:0}))});
+  game.cash=9900;game.instruments.find(i=>i.id==='CODEX').price=90;
+  game.positions.CODEX={instrumentId:'CODEX',side:'short',quantity:1,debt:0,margin:100,avgPrice:100,accruedInterest:2};
+  const before=E.equity(game);
+  await fs.writeFile(statePath,JSON.stringify({version:1,game:game.snapshot()}));
+  const {port}=await fixture(t,{statePath});
+  const restored=(await request(port,'/api/state')).json.game;
+  assert.equal(E.equity(restored),before);assert.equal(restored.cash,10008);
+  assert.equal(restored.positions.CODEX,undefined);
 });
 
 test('unavailable system collector invalidates previously sampled quotes', async t => {

@@ -17,6 +17,12 @@ swift build --package-path "$NATIVE" -c release
 BIN_DIR="$(swift build --package-path "$NATIVE" -c release --show-bin-path)"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/web/assets" "$APP/Contents/Resources/web/vendor" "$APP/Contents/Resources/runtime"
 cp "$BIN_DIR/JiuliuPet" "$APP/Contents/MacOS/JiuliuPet"
+ICON_SOURCE="$ROOT/assets/app-icon.icns"
+if [[ ! -s "$ICON_SOURCE" ]]; then
+  echo '缺少 macOS 应用图标；先运行 scripts/build-app-icon.py。' >&2
+  exit 1
+fi
+cp "$ICON_SOURCE" "$APP/Contents/Resources/app-icon.icns"
 HOST_ARCH="$(uname -m)"
 NODE_ARCHS="$(lipo -archs "$NODE_SOURCE")"
 if [[ "$NODE_ARCHS" == *" "* ]]; then
@@ -77,7 +83,8 @@ PY
 /usr/libexec/PlistBuddy -c 'Add :CFBundleName string 韭留美' "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName string 韭留美' "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c 'Add :CFBundlePackageType string APPL' "$APP/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c 'Add :CFBundleShortVersionString string 0.1.0' "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c 'Add :CFBundleIconFile string app-icon.icns' "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c 'Add :CFBundleShortVersionString string 0.1.2' "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c 'Add :CFBundleVersion string 1' "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c 'Add :LSMinimumSystemVersion string 13.0' "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c 'Add :NSHighResolutionCapable bool true' "$APP/Contents/Info.plist"

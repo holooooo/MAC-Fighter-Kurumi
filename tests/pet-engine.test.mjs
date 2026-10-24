@@ -187,7 +187,7 @@ test('live zero price is real but cannot be bought; samples trigger isolated liq
 });
 
 
-test('named strategies rank closed histories and explain decisions without borrowing', () => {
+test('named strategies rank closed histories and explain decisions without personal loans', () => {
   for (const strategy of ['momentum', 'dip', 'dca']) {
     const game = E.createGame({ startTime: 0, leverage: 5, loanRate: 0,
       instruments: [{ id: 'UP', spread: 0 }, { id: 'DOWN', spread: 0 }],
@@ -203,7 +203,7 @@ test('named strategies rank closed histories and explain decisions without borro
     assert.equal(game.automation.lastDecision.scores.length, 2);
     assert.ok(game.automation.lastDecision.reason.length > 0);
     assert.equal(game.automation.lastDecision.instrumentId, strategy === 'momentum' ? 'UP' : 'DOWN');
-    assert.equal(Object.values(game.positions)[0].debt, 0);
+    assert.ok(Object.values(game.positions)[0].debt > 0);
     assert.equal(game.loanBalance, 0);
     assert.equal(game.automation.lastDecision.tick, 2);
     game.tick(); assert.equal(game.automation.lastDecision.tick, 2);
@@ -488,4 +488,21 @@ test('automatic ticks start once and stop without serializing timers', async () 
   assert.equal(game.tickCount, 3);
   assert.equal(E.stopAutoTick(game), false);
   assert.doesNotThrow(() => E.serialize(game));
+});
+
+test('autonomous trades honor configurable T-plus cooldown and selected leverage', () => {
+  const game = E.createGame({ startTime: 0, initialCash: 10000, maxLeverage: 10, leverage: 5,
+    instruments: [{ id: 'X', spread: 0 }], automation: { enabled: true, strategy: 'dca', everyTicks: 1,
+      budgetFraction: 0.9, reserveCash: 0, tradeCooldownMs: 60000 } });
+  game.ingestSamples([{ id: 'X', value: 10, time: 0 }, { id: 'X', value: 12, time: 60000 }, { id: 'X', value: 14, time: 120000 }]);
+  game.tick({ time: 130000 });
+  assert.equal(game.events.filter(e => e.type === 'auto-trade').length, 1);
+  assert.equal(game.events.find(e => e.type === 'auto-trade').payload.leverage, 5);
+  assert.ok(game.positions.X.debt > 0);
+  game.tick({ time: 131000 });
+  assert.equal(game.events.filter(e => e.type === 'auto-trade').length, 1);
+  assert.match(game.automation.lastDecision.reason, /冷却/);
+  game.setAutomation({ tradeCooldownMs: 3600000 });
+  assert.equal(E.restoreGame(E.serialize(game)).automation.tradeCooldownMs, 3600000);
+  assert.throws(() => game.setAutomation({ tradeCooldownMs: 12345 }), /cooldown/);
 });

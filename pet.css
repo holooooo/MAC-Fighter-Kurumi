@@ -11,8 +11,7 @@
 @keyframes lossDroop{60%{transform:translateX(-50%) translateY(12px) rotate(5deg)}}@keyframes lossShake{25%{transform:translateX(-55%)}75%{transform:translateX(-45%)}}
 @keyframes liquidationSink{70%,100%{transform:translateX(-50%) translateY(23px) scale(.9)}}@keyframes liquidationFlop{60%{transform:translateX(-50%) rotate(22deg)}100%{transform:translateX(-50%) translateY(15px) rotate(15deg)}}
 
-/* Native transparent companion: no dashboard, no chart surfaces. */
-.desktop-panel-link{display:none}
+/* Native transparent companion: compact character and inline live return curve. */
 html.desktop-mode,html.desktop-mode body{background:transparent!important;background-color:transparent!important;width:100%;height:100%;overflow:hidden}
 .desktop-mode .topbar,.desktop-mode .market-area,.desktop-mode .companion-title,.desktop-mode .strategy-area,.desktop-mode .activity,.desktop-mode footer{display:none!important}
 .desktop-mode .workspace{display:block;width:320px;max-width:100vw;height:420px;padding:0;margin:0 auto;background:transparent!important}
@@ -22,7 +21,6 @@ html.desktop-mode,html.desktop-mode body{background:transparent!important;backgr
 .desktop-mode .pet-disc{display:none}
 .desktop-mode .pet-shadow{top:266px}
 .desktop-mode #pet-speech{top:291px;left:14px;right:14px;padding:9px 12px;border-radius:13px;background:rgba(255,247,251,.9);color:#79445d;font-size:12px;line-height:1.6}
-.desktop-mode .desktop-panel-link{display:block;position:absolute;right:12px;top:5px;z-index:5;padding:7px 10px;border-radius:20px;background:rgba(255,240,246,.88);color:#9e4167;text-decoration:none;font-size:10px}
 .desktop-mode .spark-one{left:30px}.desktop-mode .spark-two{right:28px}
 
 .agent-help{margin:8px 0 0;padding:6px 0;border-top:0;font-size:10px}.agent-help summary{min-height:24px}.agent-help p{line-height:1.7;margin:5px 0}.agent-example{display:flex;align-items:center;gap:8px;margin:5px 0}.agent-example code{flex:1;min-width:0;overflow-wrap:anywhere;font-size:10px;color:#785567}.agent-example button{min-height:28px;padding:4px 9px;border-radius:5px;background:var(--pale);color:var(--pink);font-size:10px}.chart-meta{line-height:1.6}.tile-value{font-size:15px}
@@ -63,4 +61,5 @@ html.desktop-mode,html.desktop-mode body{background:transparent!important;backgr
 #pet-speech,.desktop-mode #pet-speech{position:static;top:auto;left:auto;right:auto;max-height:48px;overflow:auto;padding:0;border:0;border-radius:0;background:none;color:inherit;font-size:12px;line-height:1.6;overflow-wrap:break-word;text-align:center}
 #pet-speech-image{display:block;width:80px;max-width:100%;height:80px;object-fit:contain;margin:0 auto 6px;border-radius:8px}.pet-bubble.has-image{min-width:0;max-width:min(200px,calc(100vw - 40px));padding:8px 10px}.pet-bubble.has-image #pet-speech{max-height:38px;font-size:11px}
 .desktop-mode .workspace{height:416px}.desktop-mode #pet-stage{inset:145px 0 auto;height:240px;margin:0}.desktop-mode #pet-art{width:210px;height:240px;top:0}.desktop-mode .pet-shadow{top:229px}.desktop-mode .pet-bubble{bottom:calc(100% - 7px);max-width:min(250px,calc(100vw - 32px));max-height:146px}.desktop-mode .pet-tools{top:388px}.desktop-mode .meme-popover{top:34px;max-height:342px;overflow:auto}.desktop-mode .meme-popover>img{width:136px;height:136px}
+.pet-return-overlay{position:absolute;z-index:5;top:245px;left:50%;width:104px;height:46px;transform:translateX(-50%);border-radius:9px;padding:4px 5px 3px;background:rgba(48,23,42,.78);color:#fff;pointer-events:none;text-align:center;font-variant-numeric:tabular-nums;box-shadow:0 2px 10px #28152235}.pet-return-overlay span{display:block;font-size:9px;font-weight:700;line-height:12px;white-space:nowrap}.pet-return-overlay svg{display:block;width:100%;height:25px;overflow:visible}.pet-return-overlay path{fill:none;stroke:#ffc4d6;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.pet-return-overlay[data-tone="negative"] path{stroke:#92d9c1}.pet-return-overlay[data-tone="stale"] path{stroke:#cab7c4;stroke-dasharray:3 3}.desktop-mode .pet-return-overlay{top:113px}.pet-return-overlay[hidden]{display:none!important}
 @media(prefers-reduced-motion:reduce){.pet-bubble{transition:none;transform:translateX(-50%)}.pet-bubble[data-state="visible"],.pet-bubble[data-state="leaving"]{transform:translateX(-50%)}}

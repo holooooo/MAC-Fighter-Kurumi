@@ -327,6 +327,8 @@
       everyTicks: Math.ceil(finite(opts.everyTicks === undefined ? 5 : opts.everyTicks, 'automation.everyTicks', 1, 10000)),
       budgetFraction: finite(opts.budgetFraction === undefined ? 0.1 : opts.budgetFraction, 'automation.budgetFraction', 0, 1),
       reserveCash: finite(opts.reserveCash === undefined ? 100 : opts.reserveCash, 'automation.reserveCash', 0),
+      tradeCooldownMs: (() => { const value = finite(opts.tradeCooldownMs === undefined ? 0 : opts.tradeCooldownMs, 'automation.tradeCooldownMs', 0, 86400000); if (![0,60000,3600000,86400000].includes(value)) throw new RangeError('Unsupported trade cooldown'); return value; })(),
+      lastTradeTime: opts.lastTradeTime == null ? null : finite(opts.lastTradeTime, 'automation.lastTradeTime', 0),
       lastTime: 0, lastTick: 0
     };
   }
@@ -389,6 +391,9 @@
       a.lastDecision = result;
       emit(game, 'auto-decision', copy(result));
     }
+    if (a.lastTradeTime !== null && a.tradeCooldownMs > 0 && game.time - a.lastTradeTime < a.tradeCooldownMs) {
+      decision('hold', `T+ 自动交易冷却中，等待 ${Math.ceil((a.tradeCooldownMs - (game.time - a.lastTradeTime)) / 1000)} 秒`); return;
+    }
     // Exit decisions also use the latest CLOSED bar, not the open bucket.
     if (a.strategy !== 'dca') for (const row of scores) {
       const position = game.positions[row.id];
@@ -401,12 +406,12 @@
       if (loss <= -(0.01 + (1 - game.personality.discipline) * 0.09)) {
         const trade = sell(game, row.id);
         decision('sell', '已收盘价格触发性格纪律参数对应的止损线', row.id);
-        emit(game, 'auto-trade', trade, 'pet-auto-sell'); return;
+        a.lastTradeTime = game.time; emit(game, 'auto-trade', trade, 'pet-auto-sell'); return;
       }
       if (a.strategy === 'dip' && row.dip <= 0) {
         const trade = sell(game, row.id);
         decision('sell', '已收盘价格回到完整历史均值，抄底仓获利退出', row.id);
-        emit(game, 'auto-trade', trade, 'pet-auto-sell'); return;
+        a.lastTradeTime = game.time; emit(game, 'auto-trade', trade, 'pet-auto-sell'); return;
       }
     }
     const row = scores.find(row => game.positions[row.id]?.side !== 'short' && findInstrument(game, row.id).price > 0 && (a.strategy === 'dca' || (!game.positions[row.id] && row.score > 0)));
@@ -427,10 +432,11 @@
     const budget = spendable * a.budgetFraction * (0.25 + risk * 0.75);
     if (budget <= 0.000001) { decision('hold', '现款预算不足，保留现金与债务偿还准备'); return; }
     const i = findInstrument(game, row.id);
-    const trade = buy(game, row.id, budget / (i.price * (1 + i.spread)), { leverage: 1 });
+    const leverage = Math.min(game.leverage, game.risk.maxLeverage);
+    const trade = buy(game, row.id, budget * leverage / (i.price * (1 + i.spread)), { leverage });
     const reason = a.strategy === 'momentum' ? '完整已收盘历史涨幅最高的可入场品种' : a.strategy === 'dip' ? '相对完整已收盘历史均值折价最大的可入场品种' : '固定tick间隔定投，选择当前持仓市值最低的品种';
     decision('buy', reason, row.id);
-    emit(game, 'auto-trade', trade, 'pet-auto-buy');
+    a.lastTradeTime = game.time; emit(game, 'auto-trade', trade, 'pet-auto-buy');
   }
   /** tick(game, {count=1, metrics={}}?) -> game.
    * Supplied numeric metric samples are held constant across the entire batch;

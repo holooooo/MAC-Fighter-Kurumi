@@ -15,10 +15,8 @@ private let baseURL = URL(string: "http://127.0.0.1:\(servicePort)")!
 final class DragHandle: NSView {
     override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .openHand) }
-    override func draw(_ dirtyRect: NSRect) {
-        NSColor.systemPink.withAlphaComponent(0.35).setFill()
-        NSBezierPath(roundedRect: NSRect(x: bounds.midX - 24, y: 8, width: 48, height: 4), xRadius: 2, yRadius: 2).fill()
-    }
+    // Transparent grab area remains available above the character; no ornamental bar.
+
 }
 
 @MainActor
@@ -164,7 +162,9 @@ final class Application: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
     }
 
-    private func probe() async -> Bool {
+    private enum ServiceProbe: Equatable { case compatible, incompatible, unavailable }
+
+    private func probe() async -> ServiceProbe {
         var request = URLRequest(url: baseURL.appendingPathComponent("api/state"))
         request.timeoutInterval = 0.8
         request.cachePolicy = .reloadIgnoringLocalCacheData
@@ -174,13 +174,18 @@ final class Application: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                   (response as? HTTPURLResponse)?.statusCode == 200,
                   let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let game = json["game"] as? [String: Any], game["mode"] as? String == "live",
-                  json["telemetry"] is [String: Any] else { return false }
-            return true
-        } catch { return false }
+                  json["telemetry"] is [String: Any],
+                  let server = json["server"] as? [String: Any], server["protocolVersion"] as? Int == 2 else { return .incompatible }
+            return .compatible
+        } catch { return .unavailable }
     }
 
     private func ensureService() async throws {
-        if await probe() { return } // Existing service is never owned or terminated by this app.
+        switch await probe() {
+        case .compatible: return // Compatible existing service remains external and is never terminated.
+        case .incompatible: throw failure("端口 8766 已有旧版或不兼容的服务。先确认占用者并正常退出它，再重新打开韭留美；不会自动结束其他进程。")
+        case .unavailable: break
+        }
         try Task.checkCancellation()
         guard let resources = Bundle.main.resourceURL else { throw failure("找不到应用资源目录。请重新运行打包脚本。") }
         let server = resources.appendingPathComponent("web/server.cjs")
@@ -211,9 +216,15 @@ final class Application: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         // but this app only retains ownership of the exact child it launched.
         for _ in 0..<40 {
             try Task.checkCancellation()
-            if await probe() {
+            let status = await probe()
+            if status == .compatible {
                 if !process.isRunning { ownedService = nil }
                 return
+            }
+            if status == .incompatible {
+                if process.isRunning { process.interrupt() }
+                ownedService = nil
+                throw failure("端口 8766 被旧版或不兼容的服务占用；请确认进程并正常退出后重开应用。")
             }
             if !process.isRunning {
                 ownedService = nil

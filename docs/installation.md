@@ -6,7 +6,7 @@
 
 ## 下载、校验、安装
 
-1. 打开[GitHub Releases](https://github.com/holooooo/FX-Fighter-Kurumi/releases/latest)，下载该版本的JiuliuPet-v0.1.1-macos-arm64.zip与SHA256SUMS。不要下载Source code ZIP当成应用安装包。
+1. 打开[GitHub Releases](https://github.com/holooooo/FX-Fighter-Kurumi/releases/latest)，下载该版本的JiuliuPet-v0.1.2-macos-arm64.zip与SHA256SUMS。不要下载Source code ZIP当成应用安装包。
 2. 把ZIP与SHA256SUMS放在同一文件夹。在终端进入该目录，例如`cd ~/Downloads`，执行`shasum -a 256 -c SHA256SUMS`。应看到ZIP名称及`OK`。失败则停止安装，重新下载；校验只证明与同一发布页的文件一致，不等于Apple公证或可信发行者身份。
 3. 双击ZIP解压，将韭留美.app拖进Finder的「应用程序」。压缩包附带README、安装说明及许可文件，不必把整个源码目录放入应用程序。
 4. 从「应用程序」打开韭留美。桌宠与交易面板共用本地服务。菜单栏可「打开面板」「显示／隐藏桌宠」「退出韭留美」。关闭面板不等于退出桌宠。
@@ -27,7 +27,7 @@ DSH token统计是可选插件功能，见[dsh-plugin.md](dsh-plugin.md)。小�
 
 ## 端口冲突与无法打开面板
 
-服务固定监听`127.0.0.1:8766`。浏览器可访问`http://127.0.0.1:8766/pet.html`。若应用提示端口占用，在终端执行`lsof -nP -iTCP:8766 -sTCP:LISTEN`查看占用者。只停止你确认用途且允许关闭的程序；不要按PID盲目结束进程。若已有韭留美健康服务，应用会复用它且退出时不关闭它。
+服务固定监听`127.0.0.1:8766`。浏览器可访问`http://127.0.0.1:8766/pet.html`。若应用提示端口占用，在终端执行`lsof -nP -iTCP:8766 -sTCP:LISTEN`查看占用者。只停止你确认用途且允许关闭的程序；不要按PID盲目结束进程。若已有协议兼容的韭留美健康服务，应用会复用它且退出时不关闭它。v0.1.2 会拒绝继续使用旧版或协议不兼容的服务，并提示先确认占用者、正常退出后再打开；不会自动终止外部进程，以免界面看似更新而冷却与杠杆逻辑仍由旧服务执行。
 
 应用服务日志在`~/Library/Logs/JiuliuPet/service.log`。启动失败时可把去除个人信息后的错误和系统版本提交GitHub issue；不要上传完整用户目录、认证配置或账户存档。
 

@@ -26,7 +26,9 @@ for item in app.rglob('*'):
 for rel, expected in [('Contents/Info.plist','JiuliuPet'), ('Contents/PlugIns/JiuliuWidget.appex/Contents/Info.plist','JiuliuWidget')]:
     with (app/rel).open('rb') as f: info=plistlib.load(f)
     if info.get('CFBundleExecutable') != expected: raise SystemExit(f'Unexpected executable in {rel}')
-for rel in ['Contents/Resources/web/server.cjs','Contents/Resources/web/pet.html','Contents/Resources/web/assets/kurumi-generated.json','Contents/Resources/web/vendor/chart-dependencies.json']:
+with (app/'Contents/Info.plist').open('rb') as f: host=plistlib.load(f)
+if host.get('CFBundleIconFile') != 'app-icon.icns': raise SystemExit('Missing app icon declaration')
+for rel in ['Contents/Resources/app-icon.icns','Contents/Resources/web/server.cjs','Contents/Resources/web/pet.html','Contents/Resources/web/assets/kurumi-generated.json','Contents/Resources/web/vendor/chart-dependencies.json']:
     if not (app/rel).is_file(): raise SystemExit(f'Missing runtime resource: {rel}')
 actions={'idle','wave','stretch','look','press','dragging','landing','profit','buy','sell','loss','liquidation','sleep','blink','sway'}
 for action in actions:
@@ -86,7 +88,7 @@ with zipfile.ZipFile(sys.argv[1], metadata_encoding='utf-8') as archive:
         p=pathlib.PurePosixPath(name)
         if p.is_absolute() or '..' in p.parts or '\\' in name: raise SystemExit(f'Unsafe archive entry: {name}')
         if p.parts[0] not in {'韭留美.app','README.md','INSTALL.md','LICENSE','LICENSE.md','LICENSE.txt','NOTICE','NOTICE.md','THIRD_PARTY_NOTICES.md','THIRD-PARTY-NOTICES.md'}: raise SystemExit(f'Unexpected archive root: {name}')
-    for name in ['README.md','韭留美.app/Contents/MacOS/JiuliuPet','韭留美.app/Contents/Resources/runtime/node','韭留美.app/Contents/Resources/runtime/LICENSE','韭留美.app/Contents/PlugIns/JiuliuWidget.appex/Contents/MacOS/JiuliuWidget']:
+    for name in ['README.md','韭留美.app/Contents/Resources/app-icon.icns','韭留美.app/Contents/MacOS/JiuliuPet','韭留美.app/Contents/Resources/runtime/node','韭留美.app/Contents/Resources/runtime/LICENSE','韭留美.app/Contents/PlugIns/JiuliuWidget.appex/Contents/MacOS/JiuliuWidget']:
         if name not in names: raise SystemExit(f'Missing archive entry: {name}')
     if archive.testzip() is not None: raise SystemExit('ZIP checksum verification failed')
 PY

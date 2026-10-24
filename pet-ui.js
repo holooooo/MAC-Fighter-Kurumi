@@ -241,14 +241,39 @@
       if(hasHistory)updateChart(plot,i,true);
     }
   }
+  function renderPetReturn() {
+    const overlay=$('pet-return-overlay'), perf=state?.performance;
+    const percentage=Number(perf?.baseline)>0;
+    const points=(perf?.points || []).filter(point=>Number.isFinite(percentage?point.returnPct:point.equity)).slice(-32);
+    if(!points.length){overlay.hidden=true;return;}
+    const values=points.map(point=>percentage?point.returnPct:point.equity);
+    const low=Math.min(...values), high=Math.max(...values), span=high-low || 1;
+    const coords=values.length===1?[values[0],values[0]]:values;
+    $('pet-return-line').setAttribute('d',coords.map((value,index)=>`${index?'L':'M'}${(2+index*98/(coords.length-1)).toFixed(1)} ${(27-24*(value-low)/span).toFixed(1)}`).join(' '));
+    const current=perf?.current || points.at(-1), value=percentage?current?.returnPct:current?.equity;
+    const scale=Math.abs(value)>=1e8?1e8:Math.abs(value)>=1e4?1e4:1;
+    const label=Number.isFinite(value)?percentage?`收益 ${value>=0?'+':''}${(value/scale).toFixed(1)}${scale===1e8?'亿':scale===1e4?'万':''}%`:`权益 ${money(value)}`:'收益待采样';
+    $('pet-return-label').textContent=current?.stale?`旧 ${label}`:label;
+    overlay.dataset.tone=current?.stale?'stale':Number(value)<(percentage?0:Number(perf?.baseline)||0)?'negative':'positive';
+    overlay.title=current?.stale?'持仓报价已过期：曲线是最后报价估值':'真实虚拟账户收益，持续更新';
+    overlay.hidden=false;
+  }
   function consumeEvents(game) {
     const events=game.events || [];
     if(first){events.forEach(e=>seen.add(e.id));first=false;return;}
     for(const e of events){if(seen.has(e.id))continue;seen.add(e.id);
       const p=e.payload || e;let kind;
       if(e.type==='liquidation')kind='liquidation';
-      else if(e.type==='trade' || e.type==='auto-trade')kind=p.action==='buy'?'buy':Number(p.realizedPnl)<0?'loss':Number(p.realizedPnl)>0?'profit':'sell';
+      else if(e.type==='trade')kind=p.action==='buy'?'buy':Number(p.realizedPnl)<0?'loss':Number(p.realizedPnl)>0?'profit':'sell';
       if(kind)expression(kind);
+      if((e.type==='trade' || e.type==='liquidation') && p.instrumentId){
+        const instrument=game.instruments?.find(item=>item.id===p.instrumentId);
+        const name=instrument?.name || p.instrumentId;
+        const verb=e.type==='liquidation'?'强平':({buy:'买入',sell:'卖出',short:'卖空',cover:'买回'})[p.action] || '交易';
+        const qty=Number.isFinite(p.quantity)?` ${Number(p.quantity).toLocaleString('zh-CN',{maximumFractionDigits:3})} 份`:'';
+        const gearing=Number(p.leverage)>1?`，${p.leverage} 倍杠杆`:'';
+        say(`我${verb}了${name}${qty}${gearing}。`,3,`trade:${e.id}`);
+      }
     }
     if(seen.size>500)seen=new Set(events.map(e=>e.id));
   }
@@ -285,7 +310,8 @@
   }
   function render() {
     if(!state?.game)return;
-    if(desktop){consumeEvents(state.game);reactToFloatingPnl(state.game);consumeService();return;}
+    renderPetReturn();
+    if(desktop){consumeService();reactToFloatingPnl(state.game);consumeEvents(state.game);return;}
     const game=state.game,instruments=game.instruments || [];
     if(!instruments.some(i=>i.id===selected && !hiddenIds.has(i.id)))selected=instruments.find(i=>!hiddenIds.has(i.id))?.id;
     if(window.PetCharts){viewport ||= window.PetCharts.createViewport();const history=state.chartHistory;if(history?.timeframe===timeframe){const times=[...Object.values(history.markets || {}).flat(),...(history.equity || [])].map(c=>c.time);viewport.configure(times,history.intervalMs,viewportFrame!==timeframe);viewportFrame=timeframe;}}
@@ -309,7 +335,8 @@
     $('position-summary').textContent=p?`${i.id} · ${p.side==='short'?'空仓':'多仓'} · ${Number(p.quantity).toFixed(3)} 份 · 均价 ${Number(p.avgPrice).toFixed(2)}`:'当前品种暂无持仓';
     $('buy-button').textContent=$('order-side').value==='short'?'卖出开空':'买入做多';$('sell-button').textContent=p?.side==='short'?'买入平空':'卖出平多';
     $('buy-button').disabled=busy || !ok || !(i.price > 0);$('sell-button').disabled=busy || !ok || !p;
-    const automation=game.automation || {};$('auto-borrow').checked=automation.autoBorrow===true;$('auto-borrow').disabled=busy;$('bankruptcy-button').disabled=busy;$('auto-toggle').disabled=busy;$('auto-toggle').textContent=automation.enabled?'Ⅱ 暂停投资':'▶ 恢复投资';
+    $('leverage').value=String(game.leverage || 1);$('leverage').disabled=busy;
+    const automation=game.automation || {};$('trade-cooldown').value=String(automation.tradeCooldownMs ?? 60000);$('trade-cooldown').disabled=busy;$('personality').value=game.personality?.riskTolerance>=0.8?'bold':game.personality?.riskTolerance<=0.3?'cautious':'balanced';$('auto-borrow').checked=automation.autoBorrow===true;$('auto-borrow').disabled=busy;$('bankruptcy-button').disabled=busy;$('auto-toggle').disabled=busy;$('auto-toggle').textContent=automation.enabled?'Ⅱ 暂停投资':'▶ 恢复投资';
     document.querySelectorAll('[data-strategy]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.strategy===automation.strategy));b.disabled=busy;});
     $('strategy-desc').textContent=strategyCopy[automation.strategy] || '等待服务返回当前投资策略。';
     const decision=[...(game.events || [])].reverse().find(e=>e.type==='auto-decision')?.payload || automation.lastDecision || game.lastDecision || {};
@@ -349,6 +376,8 @@
   for(const verb of ['borrow','repay'])$(verb+'-button').addEventListener('click',()=>{const input=$(verb==='borrow'?'loan-size':'repay-size');if(!input.reportValidity()||!Number.isFinite(input.valueAsNumber))return;const amount=input.valueAsNumber;if(verb==='borrow'?(amount<100000||amount>3000000):amount<1)return;action({action:verb,amount},verb==='borrow'?'虚拟借款完成。':'还款完成。');});
   document.querySelectorAll('[data-loan]').forEach(button=>button.addEventListener('click',()=>{$('loan-size').value=button.dataset.loan;}));
   $('bankruptcy-button').addEventListener('click',()=>action({action:'bankruptcy'},'游戏内平账完成：现金、持仓、债务已清零，投资暂停，累计亏损保留。'));
+  $('leverage').addEventListener('change',()=>action({action:'leverage',leverage:Number($('leverage').value)},'默认杠杆已更新，手动与自主交易共用。'));
+  $('trade-cooldown').addEventListener('change',()=>action({action:'automation',automation:{tradeCooldownMs:Number($('trade-cooldown').value)}},'自动交易冷却已更新。'));
   $('auto-borrow').addEventListener('change',()=>action({action:'automation',automation:{autoBorrow:$('auto-borrow').checked}},'自动借款设置已更新。'));
   $('auto-toggle').addEventListener('click',()=>action({action:'automation',automation:{enabled:!state.game.automation?.enabled}},state.game.automation?.enabled?'自主投资已暂停，采集继续。':'自主投资已恢复。'));
   document.querySelectorAll('[data-strategy]').forEach(b=>b.addEventListener('click',()=>action({action:'automation',automation:{strategy:b.dataset.strategy}},'投资策略已更新。')));

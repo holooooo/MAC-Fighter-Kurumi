@@ -100,7 +100,7 @@ function createService(options = {}) {
     if (result.current && heldQuotesStale(game, now())) result.current.stale = true;
     return result;
   }
-  function state(selected = 'minute') { return { game: game.snapshot(), performance: performanceView(), chartHistory: charts.view(selected), tradeDiary: charts.diary(), telemetry, message, expression, cues: [...cues], server: { mode: 'live', sampleIntervalMs: 1000, trading: 'virtual', persistence: statePath ? 'local' : 'disabled' } }; }
+  function state(selected = 'minute') { return { game: game.snapshot(), performance: performanceView(), chartHistory: charts.view(selected), tradeDiary: charts.diary(), telemetry, message, expression, cues: [...cues], server: { mode: 'live', protocolVersion: 2, sampleIntervalMs: 1000, trading: 'virtual', persistence: statePath ? 'local' : 'disabled' } }; }
   function envelope(account = game, history = performance, time = now(), candles = charts) {
     return { version: 1, savedAt: time, game: account.snapshot(), performance: history.snapshot(), candleHistory: candles.snapshot() };
   }
@@ -229,10 +229,11 @@ function createService(options = {}) {
           const opts = leverage === undefined ? {} : { leverage };
           engine[body.action](candidate, symbol, body.quantity, opts); break;
         }
+        case 'leverage': case 'setLeverage': engine.setLeverage(candidate, body.leverage); break;
         case 'borrow': engine.borrow(candidate, body.amount); break;
         case 'repay': engine.repay(candidate, body.amount); break;
         case 'personality': case 'setPersonality': engine.setPersonality(candidate, body.personality ?? body.values); break;
-        case 'automation': case 'setAutomation': engine.setAutomation(candidate, body.automation ?? Object.fromEntries(['enabled', 'autoBorrow', 'strategy', 'everyTicks', 'budgetFraction', 'reserveCash'].filter(key => body[key] !== undefined).map(key => [key, body[key]]))); break;
+        case 'automation': case 'setAutomation': engine.setAutomation(candidate, body.automation ?? Object.fromEntries(['enabled', 'autoBorrow', 'strategy', 'everyTicks', 'budgetFraction', 'reserveCash', 'tradeCooldownMs'].filter(key => body[key] !== undefined).map(key => [key, body[key]]))); break;
         case 'add': case 'addInstrument': {
           const item = body.instrument;
           if (!item || typeof item.id !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(item.id)) throw fail(400, 'Invalid instrument id');
@@ -401,7 +402,7 @@ function createService(options = {}) {
 
   async function start(port = 8766) {
     if (typeof engine.ingestSamples !== 'function') throw new Error('Engine live sampling API is unavailable');
-    game = engine.createGame({ mode: 'live', startTime: now(), credit: { unlimited: true }, maxLeverage: 20, historyLimit: 120, eventLimit: 100, automation: { enabled: true, autoBorrow: true, strategy: 'momentum', everyTicks: 10, budgetFraction: 0.1, reserveCash: 1000 }, instruments: [
+    game = engine.createGame({ mode: 'live', startTime: now(), credit: { unlimited: true }, maxLeverage: 20, leverage: 10, personality: { riskTolerance: 0.95, discipline: 0.25, patience: 0.2, impulsiveness: 0.9, curiosity: 0.8 }, historyLimit: 120, eventLimit: 100, automation: { enabled: true, autoBorrow: true, strategy: 'momentum', everyTicks: 10, budgetFraction: 1, reserveCash: 0, tradeCooldownMs: 60000 }, instruments: [
       { id: 'CPU', name: 'CPU 使用率', metric: 'cpu', price: 0, spread: 0 },
       { id: 'MEM', name: '内存使用率', metric: 'memory', price: 0, spread: 0 },
       { id: 'LOAD', name: '一分钟负载', price: 0, spread: 0 },
@@ -425,7 +426,9 @@ function createService(options = {}) {
         const retired = restored.instruments.filter(i => ['CODEX', 'CLAUDE', 'MOUSE_BATTERY', 'MOUSE_FREQUENCY'].includes(i.id) || (i.id === 'DSH' && i.category !== 'token-rate-v1'));
         for (const instrument of retired) {
           const position = restored.positions[instrument.id];
-          const settlement = position ? instrument.price * position.quantity - position.debt : 0;
+          const settlement = !position ? 0 : position.side === 'short'
+            ? Math.max(0, position.margin + (position.avgPrice - instrument.price) * position.quantity - (position.accruedInterest || 0))
+            : instrument.price * position.quantity - position.debt;
           restored.cash += settlement;
           if (restored.cash < 0) { restored.loanBalance += -restored.cash; restored.cash = 0; }
           delete restored.positions[instrument.id];
@@ -443,6 +446,8 @@ function createService(options = {}) {
         restored.credit = { unlimited: true, minPerLoan: 100000, maxPerLoan: 3000000 };
         restored.automation.autoBorrow ??= true;
         restored.automation.lastBorrowTime ??= null;
+        restored.automation.tradeCooldownMs ??= 60000;
+        restored.automation.lastTradeTime ??= null;
         restored.bankruptcyLedger ??= { count: 0, totalForgivenDebt: 0, totalCrystallizedLoss: 0, records: [] };
         game = restored;
         game.lastLiveTickTime = now();

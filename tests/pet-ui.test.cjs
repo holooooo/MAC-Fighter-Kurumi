@@ -266,6 +266,31 @@ test('late poll has no timers or speech after hide and never replays after show'
   resolveState({ok:true,json:async()=>snapshot({message:{text:'隐藏期间的旧消息',time:1},cues:[{id:'hidden-cue',name:'buy',time:2}]})});await h.ready();
   assert.equal(h.timers.size,0);assert.equal(h.elements.get('pet-bubble').hidden,true);assert.equal(h.stage.dataset.expression,'idle');h.window.dispatch('pagehide');
 });
+test('desktop shows actual return curve on character and announces traded instrument',async()=>{
+  assert.doesNotMatch(html,/打开面板 ↗|desktop-panel-link/);
+  assert.doesNotMatch(html,/最近一单/);
+  const h=harness({desktop:true,random:.99});await h.ready();
+  assert.equal(h.elements.get('pet-return-overlay').hidden,true);
+  const state=snapshot({performance:{baseline:10000,points:[{time:1,equity:10000,returnPct:0},{time:2,equity:10300,returnPct:3}],current:{equity:10300,returnPct:3}},
+    game:{...snapshot().game,events:[{id:'tx:1',type:'trade',payload:{action:'buy',instrumentId:'CPU',quantity:2,leverage:5}},{id:'auto:1',type:'auto-trade',payload:{action:'buy',instrumentId:'CPU'}}]}});
+  h.setResponse(state);await h.advance(2000);
+  assert.equal(h.elements.get('pet-return-overlay').hidden,false);
+  assert.match(h.elements.get('pet-return-label').textContent,/\+3\.0%/);
+  assert.match(h.elements.get('pet-return-line').getAttribute('d'),/^M2\.0 /);
+  assert.match(h.elements.get('pet-speech').textContent,/买入.*CPU.*5 倍杠杆/);
+  h.window.dispatch('pagehide');
+});
+test('dashboard shares saved leverage and cooldown settings with autonomous trading',async()=>{
+  const initial=snapshot();initial.game.leverage=1;initial.game.automation.tradeCooldownMs=3600000;
+  const h=harness({desktop:false,initial,allowActions:true});await h.ready();
+  assert.equal(h.elements.get('leverage').value,'1');
+  assert.equal(h.elements.get('trade-cooldown').value,'3600000');
+  h.elements.get('leverage').value='2';h.elements.get('leverage').dispatch('change');await h.ready();
+  assert.equal(h.actions.at(-1).action,'leverage');assert.equal(h.actions.at(-1).leverage,2);
+  h.elements.get('trade-cooldown').value='86400000';h.elements.get('trade-cooldown').dispatch('change');await h.ready();
+  assert.equal(h.actions.at(-1).automation.tradeCooldownMs,86400000);
+  h.window.dispatch('pagehide');
+});
 test('desktop bubble geometry stays within the compact DOM and preserves reduced-motion styling',()=>{
   const css=fs.readFileSync(path.join(__dirname,'..','pet.css'),'utf8');
   assert.match(css,/\.desktop-mode \.workspace\{height:416px\}/);assert.match(css,/\.desktop-mode #pet-stage\{inset:145px 0 auto;height:240px/);assert.match(css,/\.desktop-mode \.pet-tools\{top:388px\}/);
